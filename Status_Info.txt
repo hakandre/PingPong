@@ -1,0 +1,18 @@
+GOAL: Develop a Ping pong handheld game that uses RGB 8x8 Matrix, speaker, and LEDs.
+
+ 
+CURRENT PROGRESS & MILESTONES
+Wednesday 8/22- Familiarize with Matrix (LAB)
+Thursday  8/23- Startup display(1), sound(3), and LED sequence(2).
+Friday    8/23- Startup display(1), sound(3), and LED sequence(2).
+Saturday  8/24- Game logic(Starting Game, Score setup) 
+Monday    8/26- Game logic(Paddle movement)
+Tuesday   8/27- Game logic(Ball logic)
+Wednesday 8/28- Game logic(AI)
+
+
+BREAKDOWN
+	-Input & Output Setup
+		-Inputs: Buttons(L, R, Start, Restart); 
+		-Outputs: LCD(wiring), Speaker,  LED(PWM?)
+	-
