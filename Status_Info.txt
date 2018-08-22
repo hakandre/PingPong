@@ -15,4 +15,10 @@ BREAKDOWN
 	-Input & Output Setup
 		-Inputs: Buttons(L, R, Start, Restart); 
 		-Outputs: LCD(wiring), Speaker,  LED(PWM?)
-	-
+	-Tasks:
+		[InputsSM]-Checks input from user
+			-In: ButtonInput
+			-Out: PlayerPosition, GamePlay
+		[GameLogic]-
+			-In: PlayerPosition, GamePlay, BallPosition, AIPosition
+			-Out: Displays, 
