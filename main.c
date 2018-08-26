@@ -105,15 +105,17 @@ typedef struct _task {
 //--------End Task scheduler data structure-----------------------------------
 
 //--------Shared Variables----------------------------------------------------
-unsigned char SM2_output = 0x00;
-unsigned char SM3_output = 0x00;
-unsigned char pause = 0;
+unsigned char PlayerPaddlePosition = 0x00;
+unsigned char EnemyPaddlePosition = 0x00;
+unsigned char BallXPosition = 0x00;
+unsigned char BallYPosition = 0x00;
+
 
 //--------End Shared Variables------------------------------------------------
 
 //--------User defined FSMs---------------------------------------------------
 //Enumeration of states.
-enum Display_States { Disp_init, Disp_start, Disp_startSequence, Game };
+enum Display_States { Disp_init, Disp_start, Disp_startSequence, PlayerOutput, BallOutput, EnemyOutput };
 
 int SMDisplay(int state) {
 
@@ -131,7 +133,7 @@ switch(state){
 		break;
 		
 		case Disp_startSequence:
-			state = Game;
+			state = PlayerOutput;
 			
 		/*	if((startSequenceDone) == 0x00){
 			state = Disp_startSequence;	
@@ -142,14 +144,17 @@ switch(state){
 			*/
 		break;
 		
-		case Game:
-			state = Disp_startSequence;
+		case PlayerOutput:
+			state = BallOutput;
 		break;
 		
-		default:
-		
+		case BallOutput:
+			state = EnemyOutput;
 		break;
-	break;
+
+		case EnemyOutput:
+			state = PlayerOutput;
+		break;
 }
 
 	
@@ -168,8 +173,22 @@ switch(state){
 			PORTB = 0xF0;
 		break;
 		
-		case Game:
-			PORTB = 0x0F;
+		case PlayerOutput:
+		//PORTB stays the same, since player cannot move paddle up
+			PORTB = 0xFE;
+		//PORTA changes everytime button is pressed
+			PORTA = 0x38;
+		break;
+		
+		case BallOutput:
+		//ball position will only depend from the Up-down motion 
+		PORTB = ~BallYPosition;
+		PORTA = BallXPosition;
+		break;
+		
+		case EnemyOutput:
+		PORTB = 0x7F;
+		PORTA = 0x1C;
 		break;
 		
 		default:
@@ -182,38 +201,110 @@ switch(state){
 }
 
 //Enumeration of states.
-enum SM2_States { SM2_wait, SM2_blink };
+enum SMBall_States { Ball_init, Ball_start, Ball_Moving,Ball_Bounce};
 
 // If paused: Do NOT toggle LED connected to PB0
 // If unpaused: toggle LED connected to PB0
-int SMTick2(int state) {
-
+int SMBall(int state) {
+	unsigned char ball_xDirection; //0x00 for left, 0xFF for right
+	unsigned char ball_yDirection; //0x00 for up, 0xFF for down
+	
+	
 	//State machine transitions
 	switch (state) {
-	case SM2_wait:	if (pause == 0) {	// If unpaused, go to blink state
-state = SM2_blink;
-}
-break;
-
-	case SM2_blink:	if (pause == 1) {	// If paused, go to wait state
-state = SM2_wait;
-}
-break;
-
-	default:		state = SM2_wait;
-break;
+		case Ball_init:
+			state = Ball_start;
+		break;
+		
+		case Ball_start:
+			state = Ball_Moving;
+		break;
+		
+		case Ball_Moving:
+		//still needs a case where it touches the corner
+			state = Ball_Moving;
+			
+			if(BallYPosition == 0x40){
+				state = Ball_Bounce;
+			}
+			else if(BallYPosition == 0x02){
+				state = Ball_Bounce;
+			}
+			if(BallXPosition == 0x80){
+				state = Ball_Bounce;
+			}
+			else if(BallXPosition == 0x01){
+				state = Ball_Bounce;
+			}
+		break;
+		
+		case Ball_Bounce:
+			state = Ball_Moving;
+		break;
+		
+	default:		
+	break;
 	}
 
 	//State machine actions
 	switch(state) {
-	case SM2_wait:	break;
-
-	case SM2_blink:	SM2_output = (SM2_output == 0x00) ? 0x01 : 0x00; //toggle LED
-break;
-
-	default:		break;
+		case Ball_init:
+		
+		break;
+		
+		case Ball_start:
+			BallYPosition = 0x02;
+			BallXPosition = 0x08;
+		break;
+		
+		case Ball_Moving:
+			if(ball_xDirection == 0x00){ // add parameters for bounce stuff
+				BallXPosition = BallXPosition >> 1;
+			}
+			else if(ball_xDirection == 0xFF){
+				BallXPosition = BallXPosition << 1;
+			}
+			if(ball_yDirection == 0x00){
+				BallYPosition = BallYPosition << 1;
+			}
+			else if(ball_yDirection == 0xFF){
+				BallYPosition = BallYPosition >> 1;
+			}
+		
+		break;
+		
+		case Ball_Bounce:
+			if(BallYPosition == 0x01){
+				BallYPosition= BallYPosition << 1;
+				if(ball_yDirection == 0xFF){
+					ball_yDirection = 0x00;
+				}
+				if(ball_yDirection == 0x00){
+					ball_yDirection = 0xFF;
+				}				
+			}
+			else if(BallYPosition == 0x80){
+				BallYPosition= BallYPosition >> 1;
+								if(ball_yDirection == 0xFF){
+									ball_yDirection = 0x00;
+								}
+								if(ball_yDirection == 0x00){
+									ball_yDirection = 0xFF;
+								}
+			}
+			if(BallXPosition == 0x80){
+				BallXPosition= BallXPosition >> 1;
+				ball_xDirection = ~ball_xDirection;
+			}
+			else if(BallXPosition == 0x01){
+				BallXPosition= BallXPosition << 1;
+				ball_xDirection = ~ball_xDirection;
+			}
+		
+		
+		break;
+		
 	}
-
 	return state;
 }
 
@@ -222,31 +313,16 @@ enum SM3_States { SM3_wait, SM3_blink };
 
 // If paused: Do NOT toggle LED connected to PB1
 // If unpaused: toggle LED connected to PB1
+
 int SMTick3(int state) {
 	//State machine transitions
 	switch (state) {
-	case SM3_wait:	if (pause == 0) {	// If unpaused, go to blink state
-state = SM3_blink;
-}
-break;
-
-	case SM3_blink:	if (pause == 1) {	// If paused, go to wait state
-state = SM3_wait;
-}
-break;
-
-	default:		state = SM3_wait;
-				break;
+	
 	}
 
 	//State machine actions
 	switch(state) {
-	case SM3_wait:	break;
 
-	case SM3_blink:	SM3_output = (SM3_output == 0x00) ? 0x02 : 0x00; //toggle LED
-				break;
-
-	default:		break;
 	}
 
 	return state;
@@ -272,7 +348,7 @@ int SMTick4(int state) {
 
 	//State machine actions
 	switch(state) {
-	case SM4_display:	output = SM2_output | SM3_output; // write shared outputs
+	case SM4_display://	output = SM2_output | SM3_output; // write shared outputs
 									// to local variables
 break;
 
@@ -297,14 +373,14 @@ DDRB = 0xFF; PORTB = 0x00;
 PORTA = 0xFF;
 
 // Period for the tasks
-unsigned long int SMDisplay_calc = 500;
-unsigned long int SMTick2_calc = 100;
+unsigned long int SMDisplay_calc = 5;
+unsigned long int SMBall_calc = 200;
 unsigned long int SMTick3_calc = 1000;
 unsigned long int SMTick4_calc = 100;
 
 //Calculating GCD
 unsigned long int tmpGCD = 1;
-tmpGCD = findGCD(SMDisplay_calc, SMTick2_calc);
+tmpGCD = findGCD(SMDisplay_calc, SMBall_calc);
 tmpGCD = findGCD(tmpGCD, SMTick3_calc);
 tmpGCD = findGCD(tmpGCD, SMTick4_calc);
 
@@ -313,7 +389,7 @@ unsigned long int GCD = tmpGCD;
 
 //Recalculate GCD periods for scheduler
 unsigned long int SMDisplay_period = SMDisplay_calc/GCD;
-unsigned long int SMTick2_period = SMTick2_calc/GCD;
+unsigned long int SMBall_period = SMBall_calc/GCD;
 unsigned long int SMTick3_period = SMTick3_calc/GCD;
 unsigned long int SMTick4_period = SMTick4_calc/GCD;
 
@@ -330,9 +406,9 @@ task1.TickFct = &SMDisplay;//Function pointer for the tick.
 
 // Task 2
 task2.state = 0;//Task initial state.
-task2.period = SMTick2_period;//Task Period.
-task2.elapsedTime = SMTick2_period;//Task current elapsed time.
-task2.TickFct = &SMTick2;//Function pointer for the tick.
+task2.period = SMBall_period;//Task Period.
+task2.elapsedTime = SMBall_period;//Task current elapsed time.
+task2.TickFct = &SMBall;//Function pointer for the tick.
 
 // Task 3
 task3.state = 0;//Task initial state.
