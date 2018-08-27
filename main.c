@@ -206,8 +206,8 @@ enum SMBall_States { Ball_init, Ball_start, Ball_Moving,Ball_Bounce};
 // If paused: Do NOT toggle LED connected to PB0
 // If unpaused: toggle LED connected to PB0
 int SMBall(int state) {
-	unsigned char ball_xDirection; //0x00 for left, 0xFF for right
-	unsigned char ball_yDirection; //0x00 for up, 0xFF for down
+	unsigned char ball_xDirection =0x00;; //0x00 for left, 0x01 for right
+	unsigned char ball_yDirection = 0x00; //0x00 for up, 0x01 for down
 	
 	
 	//State machine transitions
@@ -224,10 +224,10 @@ int SMBall(int state) {
 		//still needs a case where it touches the corner
 			state = Ball_Moving;
 			
-			if(BallYPosition == 0x40){
+			if(BallYPosition == 0x80){
 				state = Ball_Bounce;
 			}
-			else if(BallYPosition == 0x02){
+			else if(BallYPosition == 0x01){
 				state = Ball_Bounce;
 			}
 			if(BallXPosition == 0x80){
@@ -245,7 +245,16 @@ int SMBall(int state) {
 	default:		
 	break;
 	}
-
+	//B 
+	// 7  -  -  -  -  -  -  -
+	// 6  -  -  -  -  -  -  -
+	// 5  -  -  -  -  -  -  -
+	// 4  -  -  -  -  -  -  -
+	// 3  -  -  -  -  -  -  -
+	// 2  -  -  -  -  -  -  -
+	// 1  -  -  -  -  -  -  -
+	// 0  1  2  3  4  5  6  7
+	
 	//State machine actions
 	switch(state) {
 		case Ball_init:
@@ -259,48 +268,75 @@ int SMBall(int state) {
 		
 		case Ball_Moving:
 			if(ball_xDirection == 0x00){ // add parameters for bounce stuff
+				if(BallXPosition != 0x01){
 				BallXPosition = BallXPosition >> 1;
+				}
 			}
-			else if(ball_xDirection == 0xFF){
+			 if(ball_xDirection == 0xFF){
+				if(BallXPosition != 0x80){
 				BallXPosition = BallXPosition << 1;
+				}
 			}
 			if(ball_yDirection == 0x00){
+				if(BallYPosition != 0x40){
 				BallYPosition = BallYPosition << 1;
+				}
 			}
-			else if(ball_yDirection == 0xFF){
+			if(ball_yDirection == 0xFF){
+				if(BallYPosition != 0x02){
 				BallYPosition = BallYPosition >> 1;
+				}
 			}
 		
 		break;
 		
 		case Ball_Bounce:
-			if(BallYPosition == 0x01){
-				BallYPosition= BallYPosition << 1;
-				if(ball_yDirection == 0xFF){
-					ball_yDirection = 0x00;
-				}
-				if(ball_yDirection == 0x00){
-					ball_yDirection = 0xFF;
-				}				
-			}
-			else if(BallYPosition == 0x80){
-				BallYPosition= BallYPosition >> 1;
-								if(ball_yDirection == 0xFF){
-									ball_yDirection = 0x00;
-								}
-								if(ball_yDirection == 0x00){
-									ball_yDirection = 0xFF;
-								}
-			}
-			if(BallXPosition == 0x80){
-				BallXPosition= BallXPosition >> 1;
-				ball_xDirection = ~ball_xDirection;
-			}
-			else if(BallXPosition == 0x01){
-				BallXPosition= BallXPosition << 1;
-				ball_xDirection = ~ball_xDirection;
-			}
+		PORTD = ~PORTD;
+		if(BallYPosition == 0x01){
+			
+			BallXPosition = BallXPosition <<1;
+			ball_yDirection = 0xFF; //DOWN!
+		}
+		if(BallYPosition == 0x40){
+			PORTD = 0xFF;
+			BallXPosition = BallXPosition >>1;
+			ball_yDirection = 0x00;
+		}
+		if(BallXPosition == 0x01){
 		
+			ball_xDirection = 0xFF; // to the left
+		}
+		if(BallXPosition == 0x80){
+
+			ball_xDirection = 0x00;
+		}
+// 			if(BallYPosition == 0x02){
+// 				BallYPosition= BallYPosition << 1;
+// 				if(ball_yDirection == 0xFF){
+// 					ball_yDirection = 0x00;
+// 				}
+// 				else {
+// 					ball_yDirection = 0xFF;
+// 				}				
+// 			}
+// 			else if(BallYPosition == 0x40){
+// 				BallYPosition= BallYPosition >> 1;
+// 								if(ball_yDirection == 0xFF){
+// 									ball_yDirection = 0x00;
+// 								}
+// 								else {
+// 									ball_yDirection = 0xFF;
+// 								}
+// 			}
+//  			if(BallXPosition == 0x80){
+//  				BallXPosition= BallXPosition >> 1;
+// 				ball_xDirection = 0xFF;
+//  			}
+//  			else if(BallXPosition == 0x01){
+//  				BallXPosition= BallXPosition << 1;
+//  				ball_xDirection = 0x00;
+//  			}
+//  		
 		
 		break;
 		
