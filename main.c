@@ -105,7 +105,7 @@ typedef struct _task {
 //--------End Task scheduler data structure-----------------------------------
 
 //--------Shared Variables----------------------------------------------------
-unsigned char PlayerPaddlePosition = 0x00;
+unsigned char PlayerPaddlePosition = 0x10;
 unsigned char EnemyPaddlePosition = 0x00;
 unsigned char BallXPosition = 0x00;
 unsigned char BallYPosition = 0x00;
@@ -174,10 +174,30 @@ switch(state){
 		break;
 		
 		case PlayerOutput:
+			 // there are 6 different combinations of positions
+			PlayerPaddlePosition = BallXPosition;
+			if(PlayerPaddlePosition == 0x10){
+				PORTA = 0x38;   //001x1000
+			}
+			else if(PlayerPaddlePosition == 0x20){
+				PORTA= 0x70;	//01x10000
+			}
+			else if(PlayerPaddlePosition == 0x40){
+				PORTA= 0xE0;	//1x100000
+			}
+			else if(PlayerPaddlePosition == 0x08){
+				PORTA = 0x1C;	//0001x100
+			}
+			else if(PlayerPaddlePosition == 0x04){
+				PORTA = 0x0E;	//00001x10
+			}
+			else if(PlayerPaddlePosition == 0x02){
+				PORTA = 0x07;	//000001x1	
+			}
 		//PORTB stays the same, since player cannot move paddle up
 			PORTB = 0xFE;
 		//PORTA changes everytime button is pressed
-			PORTA = 0x38;
+			
 		break;
 		
 		case BallOutput:
@@ -188,7 +208,25 @@ switch(state){
 		
 		case EnemyOutput:
 		PORTB = 0x7F;
-		PORTA = 0x1C;
+		PlayerPaddlePosition = BallXPosition;
+					if(PlayerPaddlePosition == 0x10){
+						PORTA = 0x38;   //001x1000
+					}
+					else if(PlayerPaddlePosition == 0x20){
+						PORTA= 0x70;	//01x10000
+					}
+					else if(PlayerPaddlePosition == 0x40){
+						PORTA= 0xE0;	//1x100000
+					}
+					else if(PlayerPaddlePosition == 0x08){
+						PORTA = 0x1C;	//0001x100
+					}
+					else if(PlayerPaddlePosition == 0x04){
+						PORTA = 0x0E;	//00001x10
+					}
+					else if(PlayerPaddlePosition == 0x02){
+						PORTA = 0x07;	//000001x1
+					}
 		break;
 		
 		default:
@@ -221,7 +259,7 @@ int SMBall(int state) {
 			state = Ball_Moving;
 		break;
 		case idle:
-		if(~PORTC&0x04 == 0x04){
+		if((~PORTC&0x04) == 0x04){
 			state =  Ball_Moving;
 		}
 		else{
@@ -336,10 +374,10 @@ state = Ball_Moving;
 }
 
 //Enumeration of states.
-enum Paddle_States {Paddle_init, Paddle_start, Paddle_idle, Paddle_press, Paddle_release };
+enum PlayerPaddle_States {Paddle_init, Paddle_start, Paddle_idle, Paddle_press, Paddle_release };
 
 unsigned char PlayerPaddlePosition;
-int SMTick3(int state) {
+int SMPlayerPaddle(int state) {
 	//State machine transitions
 	switch (state) {
 		case Paddle_init:
@@ -352,34 +390,47 @@ int SMTick3(int state) {
 		
 		case Paddle_idle:
 			//move left
-			if(~PINC&0x80 == 0x80){
+			if((~PINC&0x80)== 0x80){ // left button
 				if(PlayerPaddlePosition == 0x40){
+					state = Paddle_idle;
 					//I LEFT OFFF HEREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 				}
+				else{
+				PlayerPaddlePosition = PlayerPaddlePosition <<1;
 				state = Paddle_press;
+				}
 			}
-			else if(~PINC&0x40 == 0x40){
+			else if((~PINC&0x40) == 0x40){ // right button
+				if(PlayerPaddlePosition == 0x02){
+					state = Paddle_idle;
+				} // dont move if at corner
+				else{
+					PlayerPaddlePosition = PlayerPaddlePosition >>1;
 				state = Paddle_press;
+				
+				}
 			}
 			else{
-				state = idle;
+				state = Paddle_idle;
 			}
 		break;
 		
 		case Paddle_press:
-			if(~PINC&0x80 == 0x80){
+			if((~PINC&0x80) == 0x80){
+				
 				state = Paddle_press;
 			}
-			else if(~PINC&0x40==0x40){
+			else if((~PINC&0x40)==0x40){
+		
 				state = Paddle_press;
 			}
 			else{
-				state = idle;
+				state = Paddle_release;
 			}	
 		break;
 		
 		case Paddle_release:
-		
+			state = Paddle_idle;
 		break;
 	
 	}
@@ -438,14 +489,14 @@ PORTA = 0xFF;
 
 // Period for the tasks
 unsigned long int SMDisplay_calc = 5;
-unsigned long int SMBall_calc = 300;
-unsigned long int SMTick3_calc = 1000;
+unsigned long int SMBall_calc = 100;
+unsigned long int SMPlayerPaddle_calc = 300;
 unsigned long int SMTick4_calc = 100;
 
 //Calculating GCD
 unsigned long int tmpGCD = 1;
 tmpGCD = findGCD(SMDisplay_calc, SMBall_calc);
-tmpGCD = findGCD(tmpGCD, SMTick3_calc);
+tmpGCD = findGCD(tmpGCD, SMPlayerPaddle_calc);
 tmpGCD = findGCD(tmpGCD, SMTick4_calc);
 
 //Greatest common divisor for all tasks or smallest time unit for tasks.
@@ -454,7 +505,7 @@ unsigned long int GCD = tmpGCD;
 //Recalculate GCD periods for scheduler
 unsigned long int SMDisplay_period = SMDisplay_calc/GCD;
 unsigned long int SMBall_period = SMBall_calc/GCD;
-unsigned long int SMTick3_period = SMTick3_calc/GCD;
+unsigned long int SMPlayerPaddle_period = SMPlayerPaddle_calc/GCD;
 unsigned long int SMTick4_period = SMTick4_calc/GCD;
 
 //Declare an array of tasks 
@@ -476,9 +527,9 @@ task2.TickFct = &SMBall;//Function pointer for the tick.
 
 // Task 3
 task3.state = 0;//Task initial state.
-task3.period = SMTick3_period;//Task Period.
-task3.elapsedTime = SMTick3_period; // Task current elasped time.
-task3.TickFct = &SMTick3; // Function pointer for the tick.
+task3.period = SMPlayerPaddle_period;//Task Period.
+task3.elapsedTime = SMPlayerPaddle_period; // Task current elasped time.
+task3.TickFct = &SMPlayerPaddle; // Function pointer for the tick.
 
 // Task 4
 task4.state = 0;//Task initial state.
