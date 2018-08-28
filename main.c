@@ -201,15 +201,16 @@ switch(state){
 }
 
 //Enumeration of states.
-enum SMBall_States { Ball_init, Ball_start, Ball_Moving,Ball_Bounce};
-
+enum SMBall_States { Ball_init, Ball_start,idle, Ball_Moving,Ball_Bounce};
+	unsigned char ball_xMove_right =0x00;
+	unsigned char ball_xMove_left =0x00;
+	unsigned char ball_yMove_up =0x01;
+	unsigned char ball_yMove_down =0x00;
+	unsigned char indexXpos = 0x08;
 // If paused: Do NOT toggle LED connected to PB0
 // If unpaused: toggle LED connected to PB0
 int SMBall(int state) {
-	unsigned char ball_xDirection =0x00;; //0x00 for left, 0x01 for right
-	unsigned char ball_yDirection = 0x00; //0x00 for up, 0x01 for down
-	
-	
+
 	//State machine transitions
 	switch (state) {
 		case Ball_init:
@@ -219,23 +220,31 @@ int SMBall(int state) {
 		case Ball_start:
 			state = Ball_Moving;
 		break;
-		
+		case idle:
+		if(~PORTC&0x04 == 0x04){
+			state =  Ball_Moving;
+		}
+		else{
+			state = idle;
+		}
+		break;
 		case Ball_Moving:
-		//still needs a case where it touches the corner
-			state = Ball_Moving;
-			
-			if(BallYPosition == 0x80){
-				state = Ball_Bounce;
-			}
-			else if(BallYPosition == 0x01){
-				state = Ball_Bounce;
-			}
-			if(BallXPosition == 0x80){
-				state = Ball_Bounce;
-			}
-			else if(BallXPosition == 0x01){
-				state = Ball_Bounce;
-			}
+// 		//still needs a case where it touches the corner
+// 			state = Ball_Moving;
+// 			
+// 			if(BallYPosition == 0x80){
+// 				state = Ball_Bounce;
+// 			}
+// 			else if(BallYPosition == 0x01){
+// 				state = Ball_Bounce;
+// 			}
+// 			if(BallXPosition == 0x80){
+// 				state = Ball_Bounce;
+// 			}
+// 			else if(BallXPosition == 0x01){
+// 				state = Ball_Bounce;
+// 			}
+state = Ball_Moving;
 		break;
 		
 		case Ball_Bounce:
@@ -264,95 +273,114 @@ int SMBall(int state) {
 		case Ball_start:
 			BallYPosition = 0x02;
 			BallXPosition = 0x08;
+			ball_xMove_left = 0x01;
+			ball_xMove_right = 0x00;
+			indexXpos = BallXPosition;
 		break;
-		
+		case idle:
+			
+		break;
 		case Ball_Moving:
-			if(ball_xDirection == 0x00){ // add parameters for bounce stuff
-				if(BallXPosition != 0x01){
-				BallXPosition = BallXPosition >> 1;
-				}
-			}
-			 if(ball_xDirection == 0xFF){
-				if(BallXPosition != 0x80){
-				BallXPosition = BallXPosition << 1;
-				}
-			}
-			if(ball_yDirection == 0x00){
-				if(BallYPosition != 0x40){
-				BallYPosition = BallYPosition << 1;
-				}
-			}
-			if(ball_yDirection == 0xFF){
-				if(BallYPosition != 0x02){
-				BallYPosition = BallYPosition >> 1;
-				}
-			}
 		
+			//X-coordinate movement
+			if((ball_xMove_left == 0x01)){
+				if(BallXPosition != 0x80){
+				BallXPosition = BallXPosition <<1;
+				}
+				else{
+					
+					ball_xMove_left = 0x00;
+					ball_xMove_right = 0x01;
+				}
+			}
+			if(ball_xMove_right == 0x01){
+				if(BallXPosition != 0x01){
+					BallXPosition = BallXPosition >>1;
+				}
+				else{
+					BallXPosition = BallXPosition <<1;
+					ball_xMove_left = 0x01;
+					ball_xMove_right = 0x00;
+				}
+			}
+	
+	
+			//Y-coordinate movement
+			if((ball_yMove_up == 0x01)){
+				if(BallYPosition != 0x40){
+				BallYPosition = BallYPosition <<1;
+				}
+				else{
+					ball_yMove_down = 0x01;
+					ball_yMove_up = 0x00;
+				}
+			}
+			if(ball_yMove_down == 0x01){
+				if(BallYPosition != 0x02){
+					BallYPosition = BallYPosition >>1;
+				}
+				else{
+					BallYPosition = BallYPosition <<1;
+					ball_yMove_down = 0x00;
+					ball_yMove_up = 0x01;
+				}
+			}
+			
 		break;
 		
 		case Ball_Bounce:
-		PORTD = ~PORTD;
-		if(BallYPosition == 0x01){
-			
-			BallXPosition = BallXPosition <<1;
-			ball_yDirection = 0xFF; //DOWN!
-		}
-		if(BallYPosition == 0x40){
-			PORTD = 0xFF;
-			BallXPosition = BallXPosition >>1;
-			ball_yDirection = 0x00;
-		}
-		if(BallXPosition == 0x01){
-		
-			ball_xDirection = 0xFF; // to the left
-		}
-		if(BallXPosition == 0x80){
-
-			ball_xDirection = 0x00;
-		}
-// 			if(BallYPosition == 0x02){
-// 				BallYPosition= BallYPosition << 1;
-// 				if(ball_yDirection == 0xFF){
-// 					ball_yDirection = 0x00;
-// 				}
-// 				else {
-// 					ball_yDirection = 0xFF;
-// 				}				
-// 			}
-// 			else if(BallYPosition == 0x40){
-// 				BallYPosition= BallYPosition >> 1;
-// 								if(ball_yDirection == 0xFF){
-// 									ball_yDirection = 0x00;
-// 								}
-// 								else {
-// 									ball_yDirection = 0xFF;
-// 								}
-// 			}
-//  			if(BallXPosition == 0x80){
-//  				BallXPosition= BallXPosition >> 1;
-// 				ball_xDirection = 0xFF;
-//  			}
-//  			else if(BallXPosition == 0x01){
-//  				BallXPosition= BallXPosition << 1;
-//  				ball_xDirection = 0x00;
-//  			}
-//  		
-		
-		break;
+	break;
 		
 	}
 	return state;
 }
 
 //Enumeration of states.
-enum SM3_States { SM3_wait, SM3_blink };
+enum Paddle_States {Paddle_init, Paddle_start, Paddle_idle, Paddle_press, Paddle_release };
 
-// If paused: Do NOT toggle LED connected to PB1
-// If unpaused: toggle LED connected to PB1
-
+unsigned char PlayerPaddlePosition;
 int SMTick3(int state) {
 	//State machine transitions
 	switch (state) {
+		case Paddle_init:
+			state = Paddle_start;
+		break;
+		
+		case Paddle_start:
+			state = Paddle_idle;
+		break;
+		
+		case Paddle_idle:
+			//move left
+			if(~PINC&0x80 == 0x80){
+				if(PlayerPaddlePosition == 0x40){
+					//I LEFT OFFF HEREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+				}
+				state = Paddle_press;
+			}
+			else if(~PINC&0x40 == 0x40){
+				state = Paddle_press;
+			}
+			else{
+				state = idle;
+			}
+		break;
+		
+		case Paddle_press:
+			if(~PINC&0x80 == 0x80){
+				state = Paddle_press;
+			}
+			else if(~PINC&0x40==0x40){
+				state = Paddle_press;
+			}
+			else{
+				state = idle;
+			}	
+		break;
+		
+		case Paddle_release:
+		
+		break;
 	
 	}
 
@@ -410,7 +438,7 @@ PORTA = 0xFF;
 
 // Period for the tasks
 unsigned long int SMDisplay_calc = 5;
-unsigned long int SMBall_calc = 200;
+unsigned long int SMBall_calc = 300;
 unsigned long int SMTick3_calc = 1000;
 unsigned long int SMTick4_calc = 100;
 
