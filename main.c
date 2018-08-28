@@ -175,7 +175,7 @@ switch(state){
 		
 		case PlayerOutput:
 			 // there are 6 different combinations of positions
-			PlayerPaddlePosition = BallXPosition;
+			
 			if(PlayerPaddlePosition == 0x10){
 				PORTA = 0x38;   //001x1000
 			}
@@ -208,23 +208,24 @@ switch(state){
 		
 		case EnemyOutput:
 		PORTB = 0x7F;
-		PlayerPaddlePosition = BallXPosition;
+		
 					if(PlayerPaddlePosition == 0x10){
 						PORTA = 0x38;   //001x1000
 					}
 					else if(PlayerPaddlePosition == 0x20){
 						PORTA= 0x70;	//01x10000
 					}
-					else if(PlayerPaddlePosition == 0x40){
+					else if((PlayerPaddlePosition == 0x40)|| (PlayerPaddlePosition == 0x80)){
 						PORTA= 0xE0;	//1x100000
 					}
+					
 					else if(PlayerPaddlePosition == 0x08){
 						PORTA = 0x1C;	//0001x100
 					}
 					else if(PlayerPaddlePosition == 0x04){
 						PORTA = 0x0E;	//00001x10
 					}
-					else if(PlayerPaddlePosition == 0x02){
+					else if((PlayerPaddlePosition == 0x02)||(PlayerPaddlePosition == 0x01)){
 						PORTA = 0x07;	//000001x1
 					}
 		break;
@@ -256,33 +257,49 @@ int SMBall(int state) {
 		break;
 		
 		case Ball_start:
-			state = Ball_Moving;
+			state = idle;
 		break;
 		case idle:
-		if((~PORTC&0x04) == 0x04){
+		if(PlayerPaddlePosition == 0x20){
+			state = Ball_Moving;
+			ball_xMove_left = 0x01;
+			ball_xMove_right = 0x00;
+		}
+		else if(PlayerPaddlePosition == 0x04){
+			state = Ball_Moving;
+			ball_xMove_right = 0x01;
+			ball_xMove_left = 0x00;
+		}
+
+		else if((~PINC&0x04) == 0x04){
 			state =  Ball_Moving;
+			if(PlayerPaddlePosition ==0x10){
+				ball_xMove_left = 0x01;
+				ball_xMove_right = 0x00;
+			}
+			else{
+				ball_xMove_right = 0x01;
+				ball_xMove_left = 0x00;
+			}
 		}
 		else{
 			state = idle;
 		}
 		break;
 		case Ball_Moving:
-// 		//still needs a case where it touches the corner
-// 			state = Ball_Moving;
-// 			
-// 			if(BallYPosition == 0x80){
-// 				state = Ball_Bounce;
-// 			}
-// 			else if(BallYPosition == 0x01){
-// 				state = Ball_Bounce;
-// 			}
-// 			if(BallXPosition == 0x80){
-// 				state = Ball_Bounce;
-// 			}
-// 			else if(BallXPosition == 0x01){
-// 				state = Ball_Bounce;
-// 			}
-state = Ball_Moving;
+			if((~PINC&0x08)== 0x08){
+				state = Ball_start;
+				PlayerPaddlePosition = 0x10;
+			}
+			else if((BallYPosition == 0x01)){
+				PORTD = 0x0F;
+			}
+			else if((BallYPosition == 0x80)){
+				PORTD = 0xF0;
+			}
+			else{
+				state = Ball_Moving;
+			}
 		break;
 		
 		case Ball_Bounce:
@@ -345,22 +362,106 @@ state = Ball_Moving;
 	
 			//Y-coordinate movement
 			if((ball_yMove_up == 0x01)){
-				if(BallYPosition != 0x40){
-				BallYPosition = BallYPosition <<1;
+				if((BallYPosition != 0x80)){
+					BallYPosition = BallYPosition <<1;
 				}
-				else{
-					ball_yMove_down = 0x01;
-					ball_yMove_up = 0x00;
+				
+				if((BallYPosition == 0x80)){
+					
+					if(PlayerPaddlePosition == BallXPosition){
+						BallYPosition = BallYPosition >>1;
+						ball_yMove_down = 0x01;
+						ball_yMove_up = 0x00;
+					}
+					else if(PlayerPaddlePosition ==(BallXPosition<<1)){
+						if(ball_xMove_left == 0x01){
+							//nothing
+							if(PlayerPaddlePosition == (BallXPosition>>1)){
+								BallYPosition = BallYPosition >>1;
+								ball_yMove_down = 0x01;
+								ball_yMove_up = 0x00;
+							}
+						}
+						else{
+							BallYPosition = BallYPosition >>1;
+							ball_yMove_down = 0x01;
+							ball_yMove_up = 0x00;
+						}
+					}
+					else if(PlayerPaddlePosition == (BallXPosition >>1)){
+						if(ball_xMove_right == 0x01){
+							//nothing
+							if(PlayerPaddlePosition == (BallXPosition<<1)){
+								BallYPosition = BallYPosition >>1;
+								ball_yMove_down = 0x01;
+								ball_yMove_up = 0x00;
+							}
+						}
+						else{
+							BallYPosition = BallYPosition >>1;
+							ball_yMove_down = 0x01;
+							ball_yMove_up = 0x00;
+						}
+					}
+					else{		///SCOREE AGAINST PLAYER////////////////////////////////////////////////////
+						state = Ball_init;
+						PlayerPaddlePosition = 0x10;
+						ball_yMove_up = 0x00;
+						ball_yMove_down = 0x01;
+					}
 				}
 			}
+			
+			
+				/// LOGIC OF Player Paddle hits///////////////////////////////////
 			if(ball_yMove_down == 0x01){
-				if(BallYPosition != 0x02){
+				if((BallYPosition != 0x01)){
 					BallYPosition = BallYPosition >>1;
 				}
-				else{
-					BallYPosition = BallYPosition <<1;
-					ball_yMove_down = 0x00;
-					ball_yMove_up = 0x01;
+				
+				if((BallYPosition == 0x01)){
+					
+					if(PlayerPaddlePosition == BallXPosition){
+						BallYPosition = BallYPosition <<2;
+						ball_yMove_down = 0x00;
+						ball_yMove_up = 0x01;
+					}
+					else if(PlayerPaddlePosition ==(BallXPosition<<1)){
+						if(ball_xMove_left == 0x01){
+							//nothing
+							if(PlayerPaddlePosition == (BallXPosition>>1)){
+								BallYPosition = BallYPosition <<3;
+								ball_yMove_down = 0x00;
+								ball_yMove_up = 0x01;
+							}
+						}
+						else{
+						BallYPosition = BallYPosition <<2;
+						ball_yMove_down = 0x00;
+						ball_yMove_up = 0x01;
+						}
+					}
+					else if(PlayerPaddlePosition == (BallXPosition >>1)){
+						if(ball_xMove_right == 0x01){
+							//nothing	
+							if(PlayerPaddlePosition == (BallXPosition<<1)){
+								BallYPosition = BallYPosition <<3;
+								ball_yMove_down = 0x00;
+								ball_yMove_up = 0x01;
+							}
+						}
+						else{
+							BallYPosition = BallYPosition <<2;
+							ball_yMove_down = 0x00;
+							ball_yMove_up = 0x01;
+						}
+					}
+					else{		///SCOREE AGAINST PLAYER////////////////////////////////////////////////////
+							state = Ball_init;
+							PlayerPaddlePosition = 0x10;
+						ball_yMove_up = 0x01;
+						ball_yMove_down = 0x00;
+					}
 				}
 			}
 			
@@ -390,54 +491,76 @@ int SMPlayerPaddle(int state) {
 		
 		case Paddle_idle:
 			//move left
-			if((~PINC&0x80)== 0x80){ // left button
-				if(PlayerPaddlePosition == 0x40){
-					state = Paddle_idle;
-					//I LEFT OFFF HEREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+			if((~PINC&0x01)==0x01){ 
+				if(PlayerPaddlePosition != 0x40){
+					state = Paddle_press;
 				}
 				else{
-				PlayerPaddlePosition = PlayerPaddlePosition <<1;
-				state = Paddle_press;
+					state = Paddle_idle;
 				}
 			}
-			else if((~PINC&0x40) == 0x40){ // right button
-				if(PlayerPaddlePosition == 0x02){
-					state = Paddle_idle;
-				} // dont move if at corner
+			else if((~PINC&0x02)==0x02){
+				if(PlayerPaddlePosition != 0x02){
+					state = Paddle_press;
+				}
 				else{
-					PlayerPaddlePosition = PlayerPaddlePosition >>1;
-				state = Paddle_press;
+					state = Paddle_idle;
+				}
 				
-				}
-			}
-			else{
-				state = Paddle_idle;
 			}
 		break;
 		
 		case Paddle_press:
-			if((~PINC&0x80) == 0x80){
-				
-				state = Paddle_press;
-			}
-			else if((~PINC&0x40)==0x40){
-		
-				state = Paddle_press;
-			}
-			else{
-				state = Paddle_release;
-			}	
+		state = Paddle_release;
 		break;
 		
 		case Paddle_release:
-			state = Paddle_idle;
+			if((~PINC&0x01)== 0x01){
+				state = Paddle_release;
+			}
+			else if((~PINC&0x02) == 0x02){
+				state = Paddle_release;
+			}
+			else{
+				state = Paddle_idle;
+			}
 		break;
 	
 	}
 
 	//State machine actions
 	switch(state) {
-
+	case Paddle_init:
+	
+	break;
+	
+	case Paddle_start:
+	
+	break;
+	
+	case Paddle_idle:
+	
+	break;
+	
+	case Paddle_press:
+			if((~PINC&0x01)==0x01){
+				if(PlayerPaddlePosition != 0x40){
+					PlayerPaddlePosition = PlayerPaddlePosition <<1;
+				}
+				else{
+					PlayerPaddlePosition = PlayerPaddlePosition;
+				}
+			}
+			else if((~PINC&0x02)==0x02){
+				if(PlayerPaddlePosition != 0x02){
+					PlayerPaddlePosition = PlayerPaddlePosition >>1;
+				}
+				else{
+					PlayerPaddlePosition = PlayerPaddlePosition;
+				}
+				
+			}		
+	break;
 	}
 
 	return state;
@@ -484,13 +607,15 @@ int main()
 // Buttons PORTA[0-7], set AVR PORTA to pull down logic
 DDRA = 0xFF; PORTA = 0x00;
 DDRB = 0xFF; PORTB = 0x00;
+DDRC = 0x00; PORTC = 0xFF;
+DDRD = 0x00; PORTD = 0x00;
 // . . . etc
 PORTA = 0xFF;
 
 // Period for the tasks
 unsigned long int SMDisplay_calc = 5;
-unsigned long int SMBall_calc = 100;
-unsigned long int SMPlayerPaddle_calc = 300;
+unsigned long int SMBall_calc = 150;
+unsigned long int SMPlayerPaddle_calc = 50;
 unsigned long int SMTick4_calc = 100;
 
 //Calculating GCD
