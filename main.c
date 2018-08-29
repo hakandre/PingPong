@@ -106,7 +106,7 @@ typedef struct _task {
 
 //--------Shared Variables----------------------------------------------------
 unsigned char PlayerPaddlePosition = 0x10;
-unsigned char EnemyPaddlePosition = 0x00;
+unsigned char EnemyPaddlePosition = 0x10;
 unsigned char BallXPosition = 0x00;
 unsigned char BallYPosition = 0x00;
 
@@ -134,14 +134,7 @@ switch(state){
 		
 		case Disp_startSequence:
 			state = PlayerOutput;
-			
-		/*	if((startSequenceDone) == 0x00){
-			state = Disp_startSequence;	
-			}
-			else{
-				state = Game;
-			}
-			*/
+		
 		break;
 		
 		case PlayerOutput:
@@ -208,24 +201,25 @@ switch(state){
 		
 		case EnemyOutput:
 		PORTB = 0x7F;
-		
-					if(PlayerPaddlePosition == 0x10){
+				//REMOVE
+					EnemyPaddlePosition = BallXPosition;
+					if(EnemyPaddlePosition == 0x10){
 						PORTA = 0x38;   //001x1000
 					}
-					else if(PlayerPaddlePosition == 0x20){
+					else if(EnemyPaddlePosition == 0x20){
 						PORTA= 0x70;	//01x10000
 					}
-					else if((PlayerPaddlePosition == 0x40)|| (PlayerPaddlePosition == 0x80)){
+					else if((EnemyPaddlePosition == 0x40)|| (EnemyPaddlePosition == 0x80)){
 						PORTA= 0xE0;	//1x100000
 					}
 					
-					else if(PlayerPaddlePosition == 0x08){
+					else if(EnemyPaddlePosition == 0x08){
 						PORTA = 0x1C;	//0001x100
 					}
-					else if(PlayerPaddlePosition == 0x04){
+					else if(EnemyPaddlePosition == 0x04){
 						PORTA = 0x0E;	//00001x10
 					}
-					else if((PlayerPaddlePosition == 0x02)||(PlayerPaddlePosition == 0x01)){
+					else if((EnemyPaddlePosition == 0x02)||(EnemyPaddlePosition == 0x01)){
 						PORTA = 0x07;	//000001x1
 					}
 		break;
@@ -368,15 +362,15 @@ int SMBall(int state) {
 				
 				if((BallYPosition == 0x80)){
 					
-					if(PlayerPaddlePosition == BallXPosition){
+					if(EnemyPaddlePosition == BallXPosition){
 						BallYPosition = BallYPosition >>1;
 						ball_yMove_down = 0x01;
 						ball_yMove_up = 0x00;
 					}
-					else if(PlayerPaddlePosition ==(BallXPosition<<1)){
+					else if(EnemyPaddlePosition ==(BallXPosition<<1)){
 						if(ball_xMove_left == 0x01){
 							//nothing
-							if(PlayerPaddlePosition == (BallXPosition>>1)){
+							if(EnemyPaddlePosition == (BallXPosition>>1)){
 								BallYPosition = BallYPosition >>1;
 								ball_yMove_down = 0x01;
 								ball_yMove_up = 0x00;
@@ -388,10 +382,10 @@ int SMBall(int state) {
 							ball_yMove_up = 0x00;
 						}
 					}
-					else if(PlayerPaddlePosition == (BallXPosition >>1)){
+					else if(EnemyPaddlePosition == (BallXPosition >>1)){
 						if(ball_xMove_right == 0x01){
 							//nothing
-							if(PlayerPaddlePosition == (BallXPosition<<1)){
+							if(EnemyPaddlePosition == (BallXPosition<<1)){
 								BallYPosition = BallYPosition >>1;
 								ball_yMove_down = 0x01;
 								ball_yMove_up = 0x00;
@@ -403,9 +397,9 @@ int SMBall(int state) {
 							ball_yMove_up = 0x00;
 						}
 					}
-					else{		///SCOREE AGAINST PLAYER////////////////////////////////////////////////////
+					else{		///SCOREE AGAINST ENEMY////////////////////////////////////////////////////
 						state = Ball_init;
-						PlayerPaddlePosition = 0x10;
+						EnemyPaddlePosition = 0x10;
 						ball_yMove_up = 0x00;
 						ball_yMove_down = 0x01;
 					}
