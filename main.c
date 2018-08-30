@@ -109,18 +109,20 @@ unsigned char PlayerPaddlePosition = 0x10;
 unsigned char EnemyPaddlePosition = 0x10;
 unsigned char BallXPosition = 0x00;
 unsigned char BallYPosition = 0x00;
-
+unsigned char PlayerScore = 0x00;
+unsigned char EnemyScore =0x00;
 
 //--------End Shared Variables------------------------------------------------
 
 //--------User defined FSMs---------------------------------------------------
 //Enumeration of states.
-enum Display_States { Disp_init, Disp_start, Disp_startSequence, PlayerOutput, BallOutput, EnemyOutput };
+enum Display_States { Disp_init, Disp_start, Disp_startSequence, PlayerOutput, BallOutput, EnemyOutput, PWinState, EnemyWinState };
 
+unsigned long i = 0;
 int SMDisplay(int state) {
 
 	// Local Variables
-unsigned char startSequenceDone = 0x00;
+
 
 	//State machine transitions
 switch(state){
@@ -138,15 +140,71 @@ switch(state){
 		break;
 		
 		case PlayerOutput:
-			state = BallOutput;
+			
+			if(PlayerScore == 0x04){
+				state = PWinState;
+			}
+			else{
+				 if(EnemyScore ==0x04){
+					state = EnemyWinState;
+				}
+				else{
+					state = BallOutput;
+				}
+			}
 		break;
 		
 		case BallOutput:
-			state = EnemyOutput;
+			if(PlayerScore == 0x04){
+				state = PWinState;
+			}
+			else{
+				
+				if(EnemyScore ==0x04){
+					state = EnemyWinState;
+				}
+				else{
+					state = EnemyOutput;
+				}
+			}
 		break;
 
 		case EnemyOutput:
-			state = PlayerOutput;
+			if(PlayerScore == 0x04){
+				state = PWinState;
+			}
+			else if(EnemyScore ==0x04){
+				state = EnemyWinState;
+			}
+			else{
+				state = PlayerOutput;
+			}
+		break;
+		
+		case PWinState:
+		if(i == 1000){
+			state = BallOutput;
+			PlayerScore = 0x00;
+			EnemyScore = 0x00;
+			i = 0x00;
+		}
+		else{
+			++i;
+			state = PWinState;
+		}
+		break;
+
+		case EnemyWinState:
+		if(i == 1000){
+			state = BallOutput;
+			PlayerScore = 0x00;
+			EnemyScore = 0x00;
+			i = 0x00;
+		}
+		else{
+			++i;
+			state = EnemyWinState;
+		}
 		break;
 }
 
@@ -195,6 +253,7 @@ switch(state){
 		
 		case BallOutput:
 		//ball position will only depend from the Up-down motion 
+		
 		PORTB = ~BallYPosition;
 		PORTA = BallXPosition;
 		break;
@@ -202,7 +261,7 @@ switch(state){
 		case EnemyOutput:
 		PORTB = 0x7F;
 				//REMOVE
-					EnemyPaddlePosition = BallXPosition;
+					
 			/////////////////////////////////////////////////////
 					if(EnemyPaddlePosition == 0x10){
 						PORTA = 0x38;   //001x1000
@@ -225,6 +284,76 @@ switch(state){
 					}
 		break;
 		
+		case PWinState:
+		if(i<200){
+			PORTA = 0xFF;
+			PORTB = 0xFF;
+			PORTD = 0xF0;
+		}
+		else if((i>200)&&(i <400)){
+			PORTA = 0xFF;
+			PORTB = 0xF1;
+			PORTD = 0x00;
+		}
+		else if((i>400)&&(i <600)){
+			PORTA = 0xFF;
+			PORTB = 0xFF;
+			PORTD = 0xF0;
+		}
+		else if((i>600)&&(i <800)){
+			PORTA = 0xFF;
+			PORTB = 0xF1;
+			PORTD = 0xFF;
+		}
+		else if((i>800)){
+			PORTA = 0xFF;
+			PORTB = 0xFF;
+			PORTD = 0x00;
+		}	
+		else if((i > 900)){
+			state = Disp_init;
+			
+			PlayerScore = 0x00;
+			EnemyScore = 0x00;
+			
+		}
+		else{
+			i++;
+		}
+				
+		break;
+			
+		case EnemyWinState:
+		if(i<200){
+			PORTA = 0xFF;
+			PORTB = 0xFF;
+			PORTD = 0x00;
+		}
+		else if((i>200)&&(i <400)){
+			PORTA = 0xFF;
+			PORTB = 0x8F;
+			PORTD = 0x0F;
+		}
+		else if((i>400)&&(i <600)){
+			PORTA = 0xFF;
+			PORTB = 0xFF;
+			PORTD = 0x00;
+		}
+		else if((i>600)&&(i <800)){
+			PORTA = 0xFF;
+			PORTB = 0x8F;
+			PORTD = 0xFF;
+		}
+		else if((i>800)){
+			PORTA = 0xFF;
+			PORTB = 0xFF;
+			PORTD = 0x00;
+		}
+		else{
+			i++;
+		}		
+		break;
+		
 		default:
 		
 		break;
@@ -244,7 +373,11 @@ enum SMBall_States { Ball_init, Ball_start,idle, Ball_Moving,Ball_Bounce};
 // If paused: Do NOT toggle LED connected to PB0
 // If unpaused: toggle LED connected to PB0
 int SMBall(int state) {
-
+	if(i == 999){
+		state = Ball_init;
+		PORTD = 0x00;
+		i = 0;
+	}
 	//State machine transitions
 	switch (state) {
 		case Ball_init:
@@ -318,7 +451,7 @@ int SMBall(int state) {
 	//State machine actions
 	switch(state) {
 		case Ball_init:
-		
+
 		break;
 		
 		case Ball_start:
@@ -403,9 +536,23 @@ int SMBall(int state) {
 					}
 					else{		///SCOREE AGAINST ENEMY////////////////////////////////////////////////////
 						state = Ball_init;
+						PlayerScore = PlayerScore +1;
 						EnemyPaddlePosition = 0x10;
 						ball_yMove_up = 0x00;
 						ball_yMove_down = 0x01;
+						if(PlayerScore == 0x01){
+							PORTD = PORTD|0x80;
+						}
+						if(PlayerScore == 0x02){
+							PORTD = PORTD|0x20;
+						}
+						if(PlayerScore == 0x03){
+							PORTD = PORTD|0x40;
+						}
+						if(PlayerScore == 0x04){
+							PORTD = 0x00;
+						}
+
 					}
 				}
 			}
@@ -456,9 +603,20 @@ int SMBall(int state) {
 					}
 					else{		///SCOREE AGAINST PLAYER////////////////////////////////////////////////////
 							state = Ball_init;
+							EnemyScore +=1;
 							PlayerPaddlePosition = 0x10;
 						ball_yMove_up = 0x01;
 						ball_yMove_down = 0x00;
+						if(EnemyScore == 0x01){
+							PORTD = PORTD|0x01;
+						}
+						if(EnemyScore == 0x02){
+							PORTD = PORTD|0x02;
+						}
+						if(EnemyScore == 0x03){
+							PORTD = PORTD|0x04;
+						}
+						
 					}
 				}
 			}
@@ -566,7 +724,7 @@ int SMPlayerPaddle(int state) {
 
 
 //Enumeration of states.
-enum EnemyPaddle_States { EnemyPaddle_start, EnemyPaddle_idle, EnemyPaddle_press, EnemyPaddle_release };
+enum EnemyPaddle_States { EnemyPaddle_init,EnemyPaddle_start, EnemyPaddle_idle, EnemyPaddle_press, EnemyPaddle_release };
 
 int SMEnemyPaddle(int state) {
 	//State machine transitions
@@ -666,15 +824,15 @@ int main()
 DDRA = 0xFF; PORTA = 0x00;
 DDRB = 0xFF; PORTB = 0x00;
 DDRC = 0x00; PORTC = 0xFF;
-DDRD = 0x00; PORTD = 0x00;
+DDRD = 0xFF; PORTD = 0x00;
 // . . . etc
 PORTA = 0xFF;
 
 // Period for the tasks
-unsigned long int SMDisplay_calc = 5;
+unsigned long int SMDisplay_calc = 2;
 unsigned long int SMBall_calc = 150;
-unsigned long int SMPlayerPaddle_calc = 50;
-unsigned long int SMEnemyPaddle_calc = 100;
+unsigned long int SMPlayerPaddle_calc = 25;
+unsigned long int SMEnemyPaddle_calc = 25;
 
 //Calculating GCD
 unsigned long int tmpGCD = 1;
