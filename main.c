@@ -105,31 +105,37 @@ typedef struct _task {
 //--------End Task scheduler data structure-----------------------------------
 
 //--------Shared Variables----------------------------------------------------
-unsigned char PlayerPaddlePosition = 0x10;
-unsigned char EnemyPaddlePosition = 0x10;
-unsigned char BallXPosition = 0x00;
-unsigned char BallYPosition = 0x00;
-unsigned char PlayerScore = 0x00;
-unsigned char EnemyScore =0x00;
-
-unsigned char Autonomous = 0x00;
+//Visible Variables
+	unsigned char PlayerPaddlePosition = 0x10;
+	unsigned char EnemyPaddlePosition = 0x10;
+	unsigned char BallXPosition = 0x00;
+	unsigned char BallYPosition = 0x00;
+	unsigned char PlayerScore = 0x00;
+	unsigned char EnemyScore =0x00;
+//Abstract Variables
+	unsigned char Autonomous = 0x00;
 	unsigned char ball_xMove_right =0x00;
 	unsigned char ball_xMove_left =0x00;
 	unsigned char ball_yMove_up =0x01;
 	unsigned char ball_yMove_down =0x00;
 	unsigned char indexXpos = 0x08;
+	unsigned long i = 0;
+	unsigned long AIdumbifier =0;
 //--------End Shared Variables------------------------------------------------
 
 //--------User defined FSMs---------------------------------------------------
-//Enumeration of states.
 enum Display_States { Disp_init, Disp_start, Disp_startSequence, PlayerOutput, BallOutput, EnemyOutput, PWinState, EnemyWinState };
-
-unsigned long i = 0;
+	//DISPLAY: 
+		//Disp_init:          NULL
+		//Disp_start:	      NULL
+		//Disp_startSequence: NULL
+		//PlayerOutput:		  Displays paddle of Player
+		//BallOutput:		  Displays Ball position, and contains edge bounce logic
+		//EnemyOutput:        Displays paddle of Enemy
+		//PWinState:          Displays win sequence for 3-4 seconds
+		//EnemyWinState:      Displays win sequence for 3-4 seconds
+		
 int SMDisplay(int state) {
-
-	// Local Variables
-
-
 	//State machine transitions
 switch(state){
 		case Disp_init:
@@ -146,7 +152,6 @@ switch(state){
 		break;
 		
 		case PlayerOutput:
-			
 			if(PlayerScore == 0x04){
 				state = PWinState;
 			}
@@ -304,9 +309,19 @@ switch(state){
 		
 		case EnemyOutput:
 		PORTB = 0x7F;
-				//Autopilot
+				//Autopilot, included these lines to make the unbeatable AI, beatable. <3 still pretty hard
 					if(Autonomous == 0x01){
-						EnemyPaddlePosition = BallXPosition;
+						
+						AIdumbifier++;
+							if(AIdumbifier >= 4000){
+								EnemyPaddlePosition = EnemyPaddlePosition;
+								if(AIdumbifier >= 5000){
+									AIdumbifier = 0;
+								}
+							}
+							else{
+								EnemyPaddlePosition = BallXPosition;
+							}
 					}
 					
 			/////////////////////////////////////////////////////
@@ -410,11 +425,13 @@ switch(state){
 	return state;
 }
 
-//Enumeration of states.
 enum SMBall_States { Ball_init, Ball_start,idle, Ball_Moving,Ball_Bounce};
-
-// If paused: Do NOT toggle LED connected to PB0
-// If unpaused: toggle LED connected to PB0
+	//BALL: Contains most game logic
+		//Ball_init:		 NULL
+		//Ball_start:		 Initializes all inputs
+		//idle:				 Waits for user input(Start button, Restart button, and paddle position over the trigger range.
+		//Ball_Moving:		 Contains bounce logic and iteration of ball movement
+		//Ball_Bounce:       NULL
 int SMBall(int state) {
 	if(i == 999){
 		state = Ball_init;
@@ -686,10 +703,14 @@ int SMBall(int state) {
 	return state;
 }
 
-//Enumeration of states.
 enum PlayerPaddle_States {Paddle_init, Paddle_start, Paddle_idle, Paddle_press, Paddle_release,auto_function_press, auto_function_release };
-
-unsigned char PlayerPaddlePosition;
+		//Paddle_init:			NULL
+		//Paddle_start:			Initializes paddle location
+		//Paddle_idle:		    Waits for input
+		//Paddle_press:			Captures movement of paddle and button press
+		//Paddle_release:	    Engages when button is released 
+		//auto_function_press:	Captures press of autonomous toggle button
+		//auto_function_release:Changes autonomous value to 1 or 0 depending on current state
 int SMPlayerPaddle(int state) {
 	//State machine transitions
 	switch (state) {
@@ -804,10 +825,12 @@ int SMPlayerPaddle(int state) {
 	return state;
 }
 
-
-//Enumeration of states.
 enum EnemyPaddle_States { EnemyPaddle_init,EnemyPaddle_start, EnemyPaddle_idle, EnemyPaddle_press, EnemyPaddle_release };
-
+		//EnemyPaddle_init:
+		//EnemyPaddle_start:
+		//EnemyPaddle_idle:
+		//EnemyPaddle_press:
+		//EnemyPaddle_release
 int SMEnemyPaddle(int state) {
 	//State machine transitions
 switch (state) {
@@ -911,8 +934,8 @@ DDRD = 0xFF; PORTD = 0x00;
 PORTA = 0xFF;
 
 // Period for the tasks
-unsigned long int SMDisplay_calc = 2;
-unsigned long int SMBall_calc = 150;
+unsigned long int SMDisplay_calc = 1;
+unsigned long int SMBall_calc = 100;
 unsigned long int SMPlayerPaddle_calc = 25;
 unsigned long int SMEnemyPaddle_calc = 25;
 
