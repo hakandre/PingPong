@@ -203,6 +203,7 @@ switch(state){
 		PORTB = 0x7F;
 				//REMOVE
 					EnemyPaddlePosition = BallXPosition;
+			/////////////////////////////////////////////////////
 					if(EnemyPaddlePosition == 0x10){
 						PORTA = 0x38;   //001x1000
 					}
@@ -284,12 +285,13 @@ int SMBall(int state) {
 			if((~PINC&0x08)== 0x08){
 				state = Ball_start;
 				PlayerPaddlePosition = 0x10;
+				EnemyPaddlePosition = 0x10;
 			}
 			else if((BallYPosition == 0x01)){
-				PORTD = 0x0F;
+				//add Score
 			}
 			else if((BallYPosition == 0x80)){
-				PORTD = 0xF0;
+				//add Score 
 			}
 			else{
 				state = Ball_Moving;
@@ -325,6 +327,8 @@ int SMBall(int state) {
 			ball_xMove_left = 0x01;
 			ball_xMove_right = 0x00;
 			indexXpos = BallXPosition;
+			EnemyPaddlePosition = 0x10;
+			PlayerPaddlePosition = 0x10;
 		break;
 		case idle:
 			
@@ -562,32 +566,92 @@ int SMPlayerPaddle(int state) {
 
 
 //Enumeration of states.
-enum SM4_States { SM4_display };
+enum EnemyPaddle_States { EnemyPaddle_start, EnemyPaddle_idle, EnemyPaddle_press, EnemyPaddle_release };
 
-// Combine blinking LED outputs from SM2 and SM3, and output on PORTB
-int SMTick4(int state) {
-	// Local Variables
-
-	unsigned char output;
-
+int SMEnemyPaddle(int state) {
 	//State machine transitions
-	switch (state) {
-	case SM4_display:	break;
-
-	default:		state = SM4_display;
-				break;
+switch (state) {
+	case EnemyPaddle_init:
+		state = EnemyPaddle_start;
+	break;
+		
+	case EnemyPaddle_start:
+		state = EnemyPaddle_idle;
+	break;
+		
+	case EnemyPaddle_idle:
+	//move left
+		if((~PINC&0x10)==0x10){ 
+			if(EnemyPaddlePosition != 0x40){
+				state = EnemyPaddle_press;
+			}
+			else{
+				state = EnemyPaddle_idle;
+			}
+		}
+		else if((~PINC&0x20)==0x20){
+			if(PlayerPaddlePosition != 0x20){
+				state = EnemyPaddle_press;
+			}
+			else{
+				state = EnemyPaddle_idle;
+			}	
+		}
+	break;
+		
+	case Paddle_press:
+		state = EnemyPaddle_release;
+	break;
+		
+	case Paddle_release:
+		if((~PINC&0x10)== 0x10){
+			state = EnemyPaddle_release;
+		}
+		else if((~PINC&0x20) == 0x20){
+			state = EnemyPaddle_release;
+		}
+		else{
+			state = EnemyPaddle_idle;
+		}
+		break;
 	}
 
 	//State machine actions
 	switch(state) {
-	case SM4_display://	output = SM2_output | SM3_output; // write shared outputs
-									// to local variables
-break;
-
-	default:		break;
+	case Paddle_init:
+		//Meep
+	break;
+	
+	case Paddle_start:
+		//Meep
+	break;
+	
+	case Paddle_idle:
+		//Meep
+	break;
+	
+	case Paddle_press:
+			if((~PINC&0x10)==0x10){
+				if(EnemyPaddlePosition != 0x40){
+					EnemyPaddlePosition = EnemyPaddlePosition <<1;
+				}
+				else{
+					EnemyPaddlePosition = EnemyPaddlePosition;
+				}
+			}
+			else if((~PINC&0x20)==0x20){
+				if(EnemyPaddlePosition != 0x02){
+					EnemyPaddlePosition = EnemyPaddlePosition >>1;
+				}
+				else{
+					EnemyPaddlePosition = EnemyPaddlePosition;
+				}
+				
+			}		
+	break;
 	}
 
-	//PORTB = ~PORTB;	// Write combined, shared output variables to PORTB
+	
 
 	return state;
 }
@@ -610,13 +674,13 @@ PORTA = 0xFF;
 unsigned long int SMDisplay_calc = 5;
 unsigned long int SMBall_calc = 150;
 unsigned long int SMPlayerPaddle_calc = 50;
-unsigned long int SMTick4_calc = 100;
+unsigned long int SMEnemyPaddle_calc = 100;
 
 //Calculating GCD
 unsigned long int tmpGCD = 1;
 tmpGCD = findGCD(SMDisplay_calc, SMBall_calc);
 tmpGCD = findGCD(tmpGCD, SMPlayerPaddle_calc);
-tmpGCD = findGCD(tmpGCD, SMTick4_calc);
+tmpGCD = findGCD(tmpGCD, SMEnemyPaddle_calc);
 
 //Greatest common divisor for all tasks or smallest time unit for tasks.
 unsigned long int GCD = tmpGCD;
@@ -625,7 +689,7 @@ unsigned long int GCD = tmpGCD;
 unsigned long int SMDisplay_period = SMDisplay_calc/GCD;
 unsigned long int SMBall_period = SMBall_calc/GCD;
 unsigned long int SMPlayerPaddle_period = SMPlayerPaddle_calc/GCD;
-unsigned long int SMTick4_period = SMTick4_calc/GCD;
+unsigned long int SMEnemyPaddle_period = SMEnemyPaddle_calc/GCD;
 
 //Declare an array of tasks 
 static task task1, task2, task3, task4;
@@ -652,9 +716,9 @@ task3.TickFct = &SMPlayerPaddle; // Function pointer for the tick.
 
 // Task 4
 task4.state = 0;//Task initial state.
-task4.period = SMTick4_period;//Task Period.
-task4.elapsedTime = SMTick4_period; // Task current elasped time.
-task4.TickFct = &SMTick4; // Function pointer for the tick.
+task4.period = SMEnemyPaddle_period;//Task Period.
+task4.elapsedTime = SMEnemyPaddle_period; // Task current elasped time.
+task4.TickFct = &SMEnemyPaddle; // Function pointer for the tick.
 
 // Set the timer and turn it on
 TimerSet(GCD);
