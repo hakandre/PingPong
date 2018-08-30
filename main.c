@@ -112,6 +112,12 @@ unsigned char BallYPosition = 0x00;
 unsigned char PlayerScore = 0x00;
 unsigned char EnemyScore =0x00;
 
+unsigned char Autonomous = 0x00;
+	unsigned char ball_xMove_right =0x00;
+	unsigned char ball_xMove_left =0x00;
+	unsigned char ball_yMove_up =0x01;
+	unsigned char ball_yMove_down =0x00;
+	unsigned char indexXpos = 0x08;
 //--------End Shared Variables------------------------------------------------
 
 //--------User defined FSMs---------------------------------------------------
@@ -253,14 +259,55 @@ switch(state){
 		
 		case BallOutput:
 		//ball position will only depend from the Up-down motion 
-		
+		if((ball_xMove_left == 0x01)&&(ball_yMove_up== 0x01)&&(BallYPosition == 0x80)){
+			BallYPosition = BallYPosition >>1;
+			BallXPosition = BallXPosition >>1;
+			PORTB = ~BallYPosition;
+			ball_xMove_left =0x00;
+			ball_xMove_right=0x01;
+			ball_yMove_up = 0x00;
+			ball_yMove_down = 0x01;
+		}
+		else if((ball_xMove_right == 0x01)&&(ball_yMove_up == 0x01)&&(BallYPosition == 0x80)){
+			BallYPosition = BallYPosition >>1;
+			BallXPosition = BallXPosition <<1;
+			PORTB = ~BallYPosition;
+			ball_xMove_left = 0x01;
+			ball_xMove_right = 0x00;
+			ball_yMove_up = 0x00;
+			ball_yMove_down= 0x01;
+		}
+		else if((ball_xMove_right== 0x01)&&(ball_yMove_down == 0x01)&&(BallYPosition == 0x01)){
+			BallYPosition = BallYPosition <<1;
+			BallXPosition = BallXPosition <<1;
+			PORTB = ~BallYPosition;
+			ball_xMove_left = 0x01;
+			ball_xMove_right = 0x00;
+			ball_yMove_up = 0x01;
+			ball_yMove_down= 0x00;
+		}
+		else if((ball_xMove_left== 0x01)&&(ball_yMove_down == 0x01)&&(BallYPosition == 0x01)){
+			BallYPosition = BallYPosition <<1;
+			BallXPosition = BallXPosition >>1;
+			PORTB = ~BallYPosition;
+			ball_xMove_left = 0x00;
+			ball_xMove_right = 0x01;
+			ball_yMove_up = 0x01;
+			ball_yMove_down= 0x00;
+		}
+		else{
 		PORTB = ~BallYPosition;
+		}
+		
 		PORTA = BallXPosition;
 		break;
 		
 		case EnemyOutput:
 		PORTB = 0x7F;
-				//REMOVE
+				//Autopilot
+					if(Autonomous == 0x01){
+						EnemyPaddlePosition = BallXPosition;
+					}
 					
 			/////////////////////////////////////////////////////
 					if(EnemyPaddlePosition == 0x10){
@@ -365,11 +412,7 @@ switch(state){
 
 //Enumeration of states.
 enum SMBall_States { Ball_init, Ball_start,idle, Ball_Moving,Ball_Bounce};
-	unsigned char ball_xMove_right =0x00;
-	unsigned char ball_xMove_left =0x00;
-	unsigned char ball_yMove_up =0x01;
-	unsigned char ball_yMove_down =0x00;
-	unsigned char indexXpos = 0x08;
+
 // If paused: Do NOT toggle LED connected to PB0
 // If unpaused: toggle LED connected to PB0
 int SMBall(int state) {
@@ -386,8 +429,18 @@ int SMBall(int state) {
 		
 		case Ball_start:
 			state = idle;
+			
 		break;
 		case idle:
+		
+			if((~PINC&0x08)== 0x08){
+				state = idle;
+				PlayerPaddlePosition = 0x10;
+				EnemyPaddlePosition = 0x10;
+				PlayerScore = 0x00;
+				EnemyScore = 0x00;
+				PORTD = 0x00;
+					}
 		if(PlayerPaddlePosition == 0x20){
 			state = Ball_Moving;
 			ball_xMove_left = 0x01;
@@ -419,6 +472,9 @@ int SMBall(int state) {
 				state = Ball_start;
 				PlayerPaddlePosition = 0x10;
 				EnemyPaddlePosition = 0x10;
+				PlayerScore = 0x00;
+				EnemyScore = 0x00;
+				PORTD = 0x00;
 			}
 			else if((BallYPosition == 0x01)){
 				//add Score
@@ -631,7 +687,7 @@ int SMBall(int state) {
 }
 
 //Enumeration of states.
-enum PlayerPaddle_States {Paddle_init, Paddle_start, Paddle_idle, Paddle_press, Paddle_release };
+enum PlayerPaddle_States {Paddle_init, Paddle_start, Paddle_idle, Paddle_press, Paddle_release,auto_function_press, auto_function_release };
 
 unsigned char PlayerPaddlePosition;
 int SMPlayerPaddle(int state) {
@@ -664,8 +720,26 @@ int SMPlayerPaddle(int state) {
 				}
 				
 			}
+			else if(((~PINC&0x40) == 0x40)){
+				state = auto_function_press;
+			}
+			
 		break;
 		
+		case auto_function_press:
+			if(((~PINC&0x40) == 0x40)){
+				state = auto_function_press;
+			}
+			else{
+				state = auto_function_release;
+			}
+		
+		break;
+		
+		case auto_function_release:
+			state = Paddle_idle;
+			
+		break;
 		case Paddle_press:
 		state = Paddle_release;
 		break;
@@ -698,6 +772,14 @@ int SMPlayerPaddle(int state) {
 	
 	break;
 	
+	case auto_function_release:
+		if(Autonomous == 0x01){
+			Autonomous = 0x00;
+		}
+		else{
+			Autonomous = 0x01;
+		}
+	break;
 	case Paddle_press:
 			if((~PINC&0x01)==0x01){
 				if(PlayerPaddlePosition != 0x40){
