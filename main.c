@@ -105,14 +105,14 @@ typedef struct _task {
 //--------End Task scheduler data structure-----------------------------------
 
 //--------Shared Variables----------------------------------------------------
-//Visible Variables
+//Output Variables
 	unsigned char PlayerPaddlePosition = 0x10;
 	unsigned char EnemyPaddlePosition = 0x10;
 	unsigned char BallXPosition = 0x00;
 	unsigned char BallYPosition = 0x00;
 	unsigned char PlayerScore = 0x00;
 	unsigned char EnemyScore =0x00;
-//Abstract Variables
+//Internal Variables
 	unsigned char Autonomous = 0x00;
 	unsigned char ball_xMove_right =0x00;
 	unsigned char ball_xMove_left =0x00;
@@ -311,20 +311,26 @@ switch(state){
 		PORTB = 0x7F;
 				//Autopilot, included these lines to make the unbeatable AI, beatable. <3 still pretty hard
 					if(Autonomous == 0x01){
-						
 						AIdumbifier++;
-							if(AIdumbifier >= 4000){
+						if(AIdumbifier >= 4000){
+							EnemyPaddlePosition = EnemyPaddlePosition;
+							if(AIdumbifier >= 5000){
+								AIdumbifier = 0;
+							}
+						}
+						else{
+							if(EnemyPaddlePosition ==  BallXPosition){ //  If  is directly on  top, don't do  anything
 								EnemyPaddlePosition = EnemyPaddlePosition;
-								if(AIdumbifier >= 5000){
-									AIdumbifier = 0;
-								}
 							}
-							else{
-								EnemyPaddlePosition = BallXPosition;
+							else  if(EnemyPaddlePosition < BallXPosition){ //Move left
+								EnemyPaddlePosition +=1;
 							}
+							else if(EnemyPaddlePosition < BallXPosition){ // Move Right
+								EnemyPaddlePosition  -=1;
+						}
 					}
-					
-			/////////////////////////////////////////////////////
+		
+		
 					if(EnemyPaddlePosition == 0x10){
 						PORTA = 0x38;   //001x1000
 					}
